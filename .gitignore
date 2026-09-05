@@ -1,0 +1,15 @@
+.tools/
+.venv/
+node_modules/
+test-results/
+__pycache__/
+.env*
+!.env.example
+.clasp.json
+.clasprc.json
+*credentials*.json
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
