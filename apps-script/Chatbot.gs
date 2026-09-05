@@ -1,0 +1,88 @@
+/** Pure intent/search engine. No Google services; copied to preview by scripts/sync-engine.py. */
+var ChatEngine = (function () {
+  const groups = [
+    { category: 'Electronics', branches: ['Abu Dhabi'], terms: ['electronics','electronic','tv','television','televisions','tvs','laptop','laptops','computer','computers','headphones','speaker','speakers','fridge','refrigerator'] },
+    { category: 'Furniture', branches: ['Dubai'], terms: ['furniture','sofa','sofas','couch','couches','bed','beds','chair','chairs','table','tables','desk','desks','wardrobe','almari'] },
+    { category: 'Pipes', branches: ['Sharjah'], terms: ['pipe','pipes','piping','fitting','fittings','pvc'] },
+    { category: 'Hardware', branches: ['Sharjah'], terms: ['hardware','plumbing','plumber','tap','taps','faucet','faucets','tool','tools','drill','screw','screws','wrench'] },
+    { category: 'Utility products', branches: ['Sharjah'], terms: ['utility','utilities','ladder','ladders','bucket','buckets'] },
+    { category: 'Kitchen Items', branches: ['Abu Dhabi','Dubai','Sharjah'], terms: ['kitchen','kitchens','cookware','cooking','pan','pans','pot','pots','utensil','utensils','cutlery','crockery','kettle','kettles','bartan'] },
+  ];
+  const normalize = value => String(value || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\u0600-\u06ff ]/g,' ').replace(/\s+/g,' ').trim();
+  const active = value => value===true || normalize(value)==='true' || String(value)==='1';
+  function words(value) { return normalize(value).split(' ').filter(Boolean); }
+  function near(a,b) {
+    if(a===b)return true;
+    if(a.length<5||b.length<5||Math.abs(a.length-b.length)>1)return false;
+    let i=0,j=0,edits=0;
+    while(i<a.length&&j<b.length){if(a[i]===b[j]){i++;j++;continue;}if(++edits>1)return false;if(a.length>=b.length)i++;if(b.length>=a.length)j++;}
+    return edits+(a.length-i)+(b.length-j)<=1;
+  }
+  function termMatch(query, term) { const q=words(query), t=words(term);return t.length>0&&t.every(w=>q.some(v=>near(v,w))); }
+  function activeDeals(deals, now) {
+    // YYYY-MM-DD boundaries are inclusive in UAE time (UTC+04).
+    const day=new Date(now || Date.now()).toISOString();
+    const current=new Date(new Date(day).getTime()+4*3600000).toISOString().slice(0,10);
+    return deals.filter(d=>active(d.is_active)&&(!d.start_date||String(d.start_date).slice(0,10)<=current)&&(!d.end_date||String(d.end_date).slice(0,10)>=current));
+  }
+  function answer(message, data, context, now) {
+    const q=normalize(message), tokens=words(q);context=context||{};
+    const result={success:true,reply:'',intent:'CLARIFY',branch:null,category:null,products:[],deals:[],contact:null,contacts:[],context:{}};
+    const branches=(data.branches||[]).filter(b=>active(b.is_active));
+    const products=(data.products||[]).filter(p=>active(p.is_active)&&branches.some(b=>b.city===p.branch));
+    const deals=activeDeals(data.deals||[],now).filter(d=>branches.some(b=>b.city===d.branch));
+    const namedBranches=['Abu Dhabi','Dubai','Sharjah'].filter(b=>q.includes(normalize(b))||(b==='Abu Dhabi'&&q.includes('abudhabi')));
+    const dealIntent=/\b(deal|deals|offer|offers|promotion|promotions|discount|discounts|free|sale)\b/.test(q);
+    const contactIntent=/\b(contact|phone|number|whatsapp|email|call)\b/.test(q);
+    const locationIntent=/\b(location|address|located|map|directions|timing|timings|hours|opening|open|close|closing)\b/.test(q)||(/\b(where|kahan|kaha|kidhar)\b/.test(q)&&/\b(branch|branches|shop|store)\b/.test(q)&&!/\b(has|sells|sell|buy|find|product)\b/.test(q));
+    const followup=/\b(it|that|those|them|same|price|stock|available|availability|quantity|much|cost|kitne|kitna|qeemat|options)\b/.test(q);
+    const allBranches=/\b(all|every|sab|teeno)\b/.test(q);
+    let group=groups.find(g=>g.terms.some(t=>tokens.some(v=>near(v,t))));
+    // Match specific products using meaningful tokens; generic category words do not count.
+    const stop=new Set(words('i a an the do does you your have has sell sells any is are it its that those them same in at for of on me my need want where which can buy find available availability price cost stock quantity what how much please hai hain ho main kis kaha kahan kidhar milega milay ga ka ki ke today currently show options and or with branch branches give about from there we us all every tell some'));
+    const generic=new Set(groups.flatMap(g=>words(g.category)));
+    let queryTerms=tokens.filter(t=>!stop.has(t)&&!generic.has(t)&&!['abu','dhabi','abudhabi','dubai','sharjah','deal','deals','free','set','offer','offers','promotion','contact','number','phone','location','hours','opening'].includes(t));
+    let matches=products.filter(p=>queryTerms.length&&queryTerms.some(t=>words([p.product_name,p.brand,p.keywords].join(' ')).some(w=>near(t,w))));
+    if(!group&&matches.length)group=groups.find(g=>g.category===matches[0].category);
+    const explicitTopic=!!group||matches.length>0||queryTerms.length>0;
+    if(!explicitTopic&&followup&&context.category)group=groups.find(g=>g.category===context.category);
+    let scope=namedBranches;
+    if(!scope.length&&!allBranches&&!explicitTopic&&followup&&['Abu Dhabi','Dubai','Sharjah'].includes(context.branch))scope=[context.branch];
+    if(!scope.length&&group)scope=group.branches;
+    if(!explicitTopic&&followup&&context.product)matches=products.filter(p=>p.product_name===context.product);
+    result.category=group?group.category:null;result.branch=scope.length===1?scope[0]:null;
+    result.context={branch:result.branch,category:result.category};
+    if(contactIntent||locationIntent||(!group&&!dealIntent&&/\b(branches|specialization)\b/.test(q))) {
+      result.intent=contactIntent?'CONTACT':'BRANCH_INFO';
+      result.contacts=branches.filter(b=>!scope.length||scope.includes(b.city));
+      result.reply=result.contacts.map(b=>`${b.branch_name}: ${b.specialization}. ${contactIntent ? (b.phone?'Phone: '+b.phone+'. ':'Phone details are not published yet. ')+(b.email?'Email: '+b.email+'. ':'') : (b.address||'Exact address will be published soon.')+' Opening hours: '+(b.opening_hours||'to be confirmed')+'.'}`).join('\n\n')||'Branch information is not available right now.';
+      result.contacts=result.contacts.map(b=>({branch:b.city,phone:b.phone,whatsapp:b.whatsapp,maps_url:b.map_url}));return result;
+    }
+    if(dealIntent) {
+      result.intent='DEALS';
+      result.deals=deals.filter(d=>(!namedBranches.length||namedBranches.includes(d.branch))&&(!group||d.category===group.category||(!d.category&&scope.includes(d.branch))||(/\bfree\b/.test(q)&&termMatch(d.free_item||'',group.category.split(' ')[0]))));
+      if(/\bfree\b/.test(q))result.deals=result.deals.filter(d=>d.free_item);
+      result.deals=result.deals.slice(0,8);
+      result.reply=result.deals.length?'Here are the current matching promotions. Ask about a product to check its price and stock.':'There are no active matching promotions right now. Would you like branch or product information?';
+      if(result.deals.length===1)result.branch=result.deals[0].branch;
+      return result;
+    }
+    if(group||matches.length) {
+      result.intent=/\b(price|cost|much|kitna|kitne|qeemat)\b/.test(q)?'PRICE':/\b(stock|quantity|available|availability)\b/.test(q)?'AVAILABILITY':'PRODUCT_SEARCH';
+      let found=matches.length?matches:queryTerms.length?[]:products.filter(p=>p.category===group.category);
+      found=found.filter(p=>!scope.length||scope.includes(p.branch));
+      if(found.length&&matches.length)result.context.product=found[0].product_name;
+      result.products=found.slice(0,6).map(p=>({product_id:p.product_id,name:p.product_name,category:p.category,branch:p.branch,description:p.description,price:p.price===''||p.price==null?null:Number(p.price),quantity:p.quantity===''||p.quantity==null?null:Number(p.quantity),stock_status:p.quantity===''||p.quantity==null?'unknown':Number(p.quantity)>0?'in_stock':'out_of_stock',brand:p.brand,unit:p.unit}));
+      const specialization=group?`${group.category} is a specialty of ${group.branches.join(', ')}${group.branches.length===1?' branch':' branches'}. `:'';
+      result.reply=specialization+(found.length?`Here ${found.length===1?'is a matching product':'are matching products'}${scope.length?' in '+scope.join(', '):''}. Prices are in AED; stock is the latest saved branch information.`:`I couldn’t find a matching active product${scope.length?' in '+scope.join(', '):''}. This does not confirm that it is unavailable. Try a product name or ask for another branch.`);
+      if(found.length>6)result.reply+=' Showing the first 6 matches; please narrow by product name or brand.';
+      if(group&&group.category==='Kitchen Items'&&!namedBranches.length)result.reply='Kitchen Items are offered at all three branches; prices and stock can differ. '+result.reply;
+      result.deals=deals.filter(d=>(!scope.length||scope.includes(d.branch))&&(d.category===result.category||found.some(p=>p.product_id===d.product_id))).slice(0,3);
+      return result;
+    }
+    if(/^(hi|hello|hey|salam|assalam)/.test(q)){result.intent='GREETING';result.reply='Hello! Welcome to U&I Mart. What can I help you find today?';}
+    else result.reply='I can help with Electronics, Furniture, Hardware, Pipes, Kitchen Items, branch locations and current deals. What product or branch are you looking for?';
+    return result;
+  }
+  return {answer:answer,normalize:normalize,active:active,activeDeals:activeDeals};
+}());
