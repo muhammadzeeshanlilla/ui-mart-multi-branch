@@ -23,7 +23,9 @@ var ChatEngine = (function () {
     // YYYY-MM-DD boundaries are inclusive in UAE time (UTC+04).
     const day=new Date(now || Date.now()).toISOString();
     const current=new Date(new Date(day).getTime()+4*3600000).toISOString().slice(0,10);
-    return deals.filter(d=>active(d.is_active)&&(!d.start_date||String(d.start_date).slice(0,10)<=current)&&(!d.end_date||String(d.end_date).slice(0,10)>=current));
+    return deals.filter(d=>active(d.is_active)&&(!d.start_date||String(d.start_date).slice(0,10)<=current)&&(!d.end_date||String(d.end_date).slice(0,10)>=current))
+      // Compatibility for existing Deals rows; Hardware remains the canonical category.
+      .map(d=>normalize(d.category)==='tools'?Object.assign({},d,{category:'Hardware'}):d);
   }
   function answer(message, data, context, now) {
     const q=normalize(message), tokens=words(q);context=context||{};
@@ -77,7 +79,7 @@ var ChatEngine = (function () {
       result.reply=specialization+(found.length?`Here ${found.length===1?'is a matching product':'are matching products'}${scope.length?' in '+scope.join(', '):''}. Prices are in AED; stock is the latest saved branch information.`:`I couldn’t find a matching active product${scope.length?' in '+scope.join(', '):''}. This does not confirm that it is unavailable. Try a product name or ask for another branch.`);
       if(found.length>6)result.reply+=' Showing the first 6 matches; please narrow by product name or brand.';
       if(group&&group.category==='Kitchen Items'&&!namedBranches.length)result.reply='Kitchen Items are offered at all three branches; prices and stock can differ. '+result.reply;
-      result.deals=deals.filter(d=>(!scope.length||scope.includes(d.branch))&&(d.category===result.category||found.some(p=>p.product_id===d.product_id))).slice(0,3);
+      result.deals=deals.filter(d=>(!scope.length||scope.includes(d.branch))&&(d.product_id?found.some(p=>p.product_id===d.product_id):d.category===result.category)).slice(0,3);
       return result;
     }
     if(/^(hi|hello|hey|salam|assalam)/.test(q)){result.intent='GREETING';result.reply='Hello! Welcome to U&I Mart. What can I help you find today?';}

@@ -31,6 +31,7 @@ export async function api(action, payload = {}) {
     return data;
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('The service took too long. Please try again.');
+    if (error instanceof TypeError || error instanceof SyntaxError) throw new Error('The service could not be reached or returned an invalid response. Please try again.');
     throw error;
   } finally { clearTimeout(timer); }
 }

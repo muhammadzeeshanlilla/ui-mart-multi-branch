@@ -17,11 +17,16 @@ function setting_(key){return PropertiesService.getScriptProperties().getPropert
 function book_(){const id=setting_('SPREADSHEET_ID');if(!id)throw new Error('SETUP_REQUIRED');return SpreadsheetApp.openById(id);}
 function sheet_(name){if(!Schema[name])throw new Error('INVALID_SHEET');const sheet=book_().getSheetByName(name);if(!sheet)throw new Error('SETUP_REQUIRED');return sheet;}
 function headers_(sheet){return sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String);}
-function value_(v){return v instanceof Date?Utilities.formatDate(v,'Asia/Dubai','yyyy-MM-dd\'T\'HH:mm:ssXXX'):v;}
+function value_(v,key,sheetTimezone){
+  if(!(v instanceof Date))return v;
+  // Deal boundaries are calendar dates as entered in the sheet, not UTC instants.
+  if(key==='start_date'||key==='end_date')return Utilities.formatDate(v,sheetTimezone||'Asia/Dubai','yyyy-MM-dd');
+  return Utilities.formatDate(v,'Asia/Dubai','yyyy-MM-dd\'T\'HH:mm:ssXXX');
+}
 function rows_(name){
   const sheet=sheet_(name);if(sheet.getLastRow()<2)return[];
-  const headers=headers_(sheet);
-  return sheet.getRange(2,1,sheet.getLastRow()-1,headers.length).getValues().filter(row=>row.some(v=>v!=='')).map(row=>{const obj={};headers.forEach((key,i)=>obj[key]=value_(row[i]));return obj;});
+  const headers=headers_(sheet),timezone=sheet.getParent().getSpreadsheetTimeZone();
+  return sheet.getRange(2,1,sheet.getLastRow()-1,headers.length).getValues().filter(row=>row.some(v=>v!=='')).map(row=>{const obj={};headers.forEach((key,i)=>obj[key]=value_(row[i],key,timezone));return obj;});
 }
 function cell_(value){
   if(value===undefined||value===null)return'';

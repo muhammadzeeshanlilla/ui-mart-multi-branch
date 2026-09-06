@@ -16,6 +16,9 @@ out=ROOT/'test-results';out.mkdir(exist_ok=True)
 with sync_playwright() as p:
     browser=p.chromium.launch(channel='msedge',headless=True)
     ctx=browser.new_context()
+    # This regression suite uses deliberate preview fixtures even when config.js is live.
+    # Live deployment verification is separate in live_test.py.
+    ctx.route('**/assets/js/config.js',lambda route:route.fulfill(content_type='text/javascript',body="export const config={preview:true,apiUrl:'',timeoutMs:1000};"))
     page=ctx.new_page();errors=[]
     page.on('pageerror',lambda error: errors.append(str(error)))
     pages=['index.html','pages/abu-dhabi.html','pages/dubai.html','pages/sharjah.html','pages/deals.html','pages/contact.html','pages/login.html','pages/owner-dashboard.html']

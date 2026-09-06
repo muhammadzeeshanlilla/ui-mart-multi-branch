@@ -27,6 +27,16 @@ test('Inactive products and branches are excluded',()=>{const changed=structured
 test('Deal date boundaries use UAE inclusive days',()=>{assert.equal(engine.activeDeals(deals,'2026-09-30T19:59:59Z').length,1);assert.equal(engine.activeDeals(deals,'2026-09-30T20:00:00Z').length,0);});
 test('Unknown message gives helpful clarification',()=>assert.match(answer('purple unicorn').reply,/What product or branch/));
 test('Unknown quantity and price are not fabricated',()=>{const d=structuredClone(data);d.products[0].price='';d.products[0].quantity='';const r=engine.answer('TV',d);assert.equal(r.products[0].price,null);assert.equal(r.products[0].quantity,null);assert.equal(r.products[0].stock_status,'unknown');});
+test('A product-specific deal is never offered for another product in its category',()=>{
+  const d=structuredClone(data);d.deals=[{...deals[0],product_id:'SOFA'},{...deals[0],deal_id:'OTHER',product_id:'BED'}];
+  const r=engine.answer('sofa',d,{},'2026-09-05T12:00:00Z');assert.equal(r.deals.length,1);assert.equal(r.deals[0].product_id,'SOFA');
+});
+test('Date-only sheet cells retain the spreadsheet calendar date',()=>{
+  const old=context.Utilities;
+  context.Utilities={formatDate:(d,tz,format)=>{assert.equal(format,'yyyy-MM-dd');return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}};
+  try{assert.equal(context.value_(new Date('2026-08-31T19:00:00Z'),'start_date','Asia/Karachi'),'2026-09-01');assert.equal(context.value_(new Date('2026-09-29T19:00:00Z'),'end_date','Asia/Karachi'),'2026-09-30');}
+  finally{context.Utilities=old;}
+});
 test('Spreadsheet formula injection is escaped',()=>{for(const s of ['=IMPORTXML("x")','+123',' @SUM(A1)','-1'])assert.ok(context.cell_(s).startsWith("'"));assert.equal(context.cell_(5),5);});
 test('Frontend engine matches canonical backend',()=>{const src=fs.readFileSync(path.join(root,'apps-script/Chatbot.gs'),'utf8').replaceAll('\r\n','\n');const copy=fs.readFileSync(path.join(root,'assets/js/chat-engine.js'),'utf8').replaceAll('\r\n','\n');assert.ok(copy.includes(src));});
 
@@ -69,4 +79,27 @@ test('Unknown API operation cannot expose inventory or logs',()=>{
   context.LockService={getScriptLock:()=>({waitLock(){},releaseLock(){}})};
   context.ContentService={MimeType:{JSON:'json'},createTextOutput:text=>({setMimeType:()=>JSON.parse(text)})};
   for(const action of ['getProducts','Users','logs','syncChatbotView']){const r=context.doPost({postData:{contents:JSON.stringify({action,session_id:'test'})}});assert.equal(r.success,false);assert.equal(r.message,'Unknown action.');}
+});
+test('Chat rate window expires even while requests continue',()=>{
+  let cached=null,ttl=0;
+  context.CacheService={getScriptCache:()=>({get:()=>cached,put:(_,v,t)=>{cached=v;ttl=t;}})};
+  context.chatRate_('audit');const initial=JSON.parse(cached).until;
+  for(let i=1;i<20;i++)context.chatRate_('audit');
+  assert.equal(JSON.parse(cached).until,initial);assert.throws(()=>context.chatRate_('audit'),/wait a minute/);
+  cached=JSON.stringify({count:20,until:Date.now()-1});context.chatRate_('audit');assert.equal(JSON.parse(cached).count,1);assert.ok(ttl<=60);
+});
+test('Public deals read branch data once without taking the write lock',()=>{
+  let calls=0,locks=0;context.DataService.getBranches=()=>{calls++;return branches;};context.DataService.getDeals=()=>deals;
+  context.LockService={getScriptLock:()=>({waitLock(){locks++;},releaseLock(){}})};
+  const result=context.doPost({postData:{contents:JSON.stringify({action:'deals',session_id:'audit'})}});
+  assert.equal(result.success,true);assert.equal(calls,1);assert.equal(locks,0);
+});
+test('Contact helpers tolerate numeric cells and reject placeholder destinations',async()=>{
+  const source=fs.readFileSync(path.join(root,'assets/js/dom.js'),'utf8');
+  const dom=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+  assert.equal(dom.telephoneUrl(3038163840),'');
+  assert.equal(dom.telephoneUrl('+971 (50) 123-4567'),'tel:+971501234567');
+  assert.equal(dom.whatsappUrl('https://wa.me/971XXXXXXXXX'),'');
+  assert.equal(dom.whatsappUrl('https://wa.me/971501234567'),'https://wa.me/971501234567');
+  assert.equal(dom.safeUrl('Google Maps link'),'');assert.equal(dom.safeUrl('javascript:alert(1)'),'');
 });

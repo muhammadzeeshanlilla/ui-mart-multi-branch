@@ -1,5 +1,6 @@
 import { api, sessionId } from './api.js';
 import { config } from './config.js';
+import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
 (function () {
     'use strict';
 
@@ -82,7 +83,7 @@ import { config } from './config.js';
             renderBackendResponse(response);
         } catch (error) {
             typingMessage.remove();
-            addAssistantMessage(GENERIC_ERROR_MESSAGE, true);
+            addAssistantMessage(error.message || GENERIC_ERROR_MESSAGE, true);
             input.value = message;
         } finally {
             isSending = false;
@@ -117,6 +118,9 @@ import { config } from './config.js';
         (response.deals || []).forEach(function(deal) {
             const card = createElement('div', 'ui-chat-product-card');
             card.textContent = deal.branch + ': ' + deal.title + ' — ' + deal.description;
+            const benefits = dealBenefits(deal);
+            if (benefits) card.appendChild(createElement('p', 'ui-chat-product-meta')).textContent = benefits;
+            if (deal.start_date || deal.end_date) card.appendChild(createElement('p', 'ui-chat-product-meta')).textContent = `${date(deal.start_date)} — ${date(deal.end_date)}`;
             content.appendChild(card);
         });
         (response.contacts || []).forEach(function(contact) { renderContact(content, contact); });
@@ -267,13 +271,11 @@ import { config } from './config.js';
         if (!contact || typeof contact !== 'object' || Array.isArray(contact)) return;
         const actions = createElement('div', 'ui-chat-contact');
 
-        if (typeof contact.phone === 'string' && contact.phone.trim()) {
-            const telephone = contact.phone.replace(/[^+\d]/g, '');
-            if (telephone) actions.appendChild(createActionLink('Call', 'fas fa-phone-alt', 'tel:' + telephone, false));
-        }
+        const telephone = telephoneUrl(contact.phone);
+        if (telephone) actions.appendChild(createActionLink('Call', 'fas fa-phone-alt', telephone, false));
 
-        const whatsappUrl = getSafeExternalUrl(contact.whatsapp);
-        if (whatsappUrl) actions.appendChild(createActionLink('WhatsApp', 'fab fa-whatsapp', whatsappUrl, true));
+        const whatsapp = whatsappUrl(contact.whatsapp);
+        if (whatsapp) actions.appendChild(createActionLink('WhatsApp', 'fab fa-whatsapp', whatsapp, true));
 
         const mapsUrl = getSafeExternalUrl(contact.maps_url);
         if (mapsUrl) actions.appendChild(createActionLink('View Map', 'fas fa-map-marker-alt', mapsUrl, true));

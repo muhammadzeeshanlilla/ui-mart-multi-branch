@@ -39,6 +39,10 @@ Kitchen products remain independent branch records, even if their names match. P
 
 Use exact branch names: `Abu Dhabi`, `Dubai`, `Sharjah`. Dates should be date cells or ISO `YYYY-MM-DD` strings; start/end days are inclusive in UAE time. Blank date boundaries are open-ended. Active promotions from inactive branches are excluded. `category` should use an allowed category. `product_id` is optional for a product-specific promotion. `free_item` enables questions about free-item offers. `discount_type` and `discount_value` are descriptive business data, not automatic price calculations.
 
+Use `Hardware` for Sharjah tool deals (`DEAL006` currently needs this correction), alongside `Pipes` and `Kitchen Items`. The deal reader accepts legacy `Tools` as `Hardware` without changing the Sheet. Displayed benefits support `percentage`, `fixed` (AED amount), and `free_item`; a nonblank `free_item` is also displayed alongside other discount types. Benefits already stated in the title/description are not repeated. These fields never change the saved product price.
+
+Public branch cards/details use active `Branches` records. Keep branch IDs `AD`, `DU`, `SH` to associate records with the existing page routes. City values must continue to match product/deal branch values. General editorial headlines and navigation routes remain in the frontend.
+
 `image_url`, `whatsapp` and `map_url` must be HTTPS URLs. For WhatsApp use `https://wa.me/971...`. Store phone numbers as plain text with their international prefix. Use complete addresses and accurate hours; setup intentionally leaves these blank. Only publish promotions you have approved.
 
 ## Accounts and logs
