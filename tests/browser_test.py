@@ -75,6 +75,13 @@ with sync_playwright() as p:
     page.locator('#code').fill('12345678');page.locator('#code-form button[type=submit]').click();page.wait_for_url('**/owner-dashboard.html');page.wait_for_selector('.record')
     assert 'AED 1,299' in page.locator('.record').inner_text()
     page.screenshot(path=str(out/'dashboard-contract.png'),full_page=True)
+    # Long saved questions/responses must not push owner records beyond the viewport.
+    page.locator('.record h3').evaluate("node => node.textContent = 'x'.repeat(500)")
+    page.locator('.record .status').evaluate("node => node.textContent = 'z'.repeat(500)")
+    for width in [1440,1024,768,430,375]:
+        page.set_viewport_size({'width':width,'height':1000})
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'),f'Dashboard overflow: {width}'
+        assert page.locator('#logout').is_visible()
     page.get_by_role('button',name='Users',exact=True).click();page.wait_for_timeout(300)
     page.locator('#logout').click();page.wait_for_url('**/login.html')
     assert page.evaluate("sessionStorage.getItem('ui_auth')") is None
