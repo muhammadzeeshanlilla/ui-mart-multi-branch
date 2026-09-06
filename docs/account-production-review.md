@@ -1,6 +1,18 @@
 # Account and production review — 6 September 2026
 
-This is a partial verification report. Real customer/owner sign-ins, private Sheet records, and the public deployment URL are not yet verified in this review. The public URL and two user-approved inbox addresses were requested; neither credentials nor email codes have been supplied. No login email has been sent.
+The requested live account verification is complete on https://muhammadzeeshanlilla.github.io/ui-mart-multi-branch/. Customer and owner OTP requests and successful verification were exercised. No application changes were needed during this live round. OTPs and bearer tokens are not included in this report.
+
+## Final live results
+
+- PASS: backend returns the customer/owner roles correctly. Customer dashboard API requests, forged client role values, and a manually changed sessionStorage role do not grant owner access. The customer dashboard page displays access denial.
+- PASS: customer and owner Sign out buttons clear stored authentication and return to the login page. Both revoked bearer tokens are rejected by `me` and `dashboard`.
+- PASS: all six real owner tabs load. Chat pagination returned 25 rows on page one and 22 on page two at the audit snapshot.
+- PASS: dashboard snapshot matched the protected API records: 2 users, 2 successful logins, 47 chats and 6 active deals. Login_Logs contained 3 rows including one failed attempt; Deals contained 7 rows, of which 6 were publicly active. A subsequent owner re-login to finish revocation testing legitimately increases the successful-login total; these figures are a snapshot, not permanent expected counts.
+- PASS: scanned every returned row in Users, Login_Logs, Chat_Logs, Activity_Logs, Deals and Branches. No duplicate IDs or user emails, missing required fields in the checked user/log schemas, or authentication-secret columns were found. Login/chat/activity timestamps were in newest-first order.
+- PASS: the signed-in customer test message and anonymous test message each have exactly one saved chat row, correct user attribution, response, intent, branch and timestamp. Customer LOGIN/LOGOUT activity and login/logout timestamps were observed. Owner login and dashboard-view activity were observed. Owner logout completed successfully; its new log row was not re-read after revocation because protected access had correctly ended.
+- PASS: no console, network or unexpected API errors were observed on the public account pages. Expected access-denial responses are successful security checks.
+
+The first owner test browser ended before logout could be checked. A fresh owner OTP/session completed that final test successfully; the earlier inaccessible test session is left to its normal backend expiry. Natural email/session expiry timing was deliberately not tested live. Expiry and disabled-user cases retain the local test coverage below. Sheet comparisons use the owner API's live sheet-backed records, not direct Google Sheets editor access.
 
 ## Verified
 
@@ -20,7 +32,7 @@ This is a partial verification report. Real customer/owner sign-ins, private She
 
 Regression coverage is in `tests/account-review.test.cjs` and the dashboard section of `tests/browser_test.py`. The Python executable available in this environment was unusable, so equivalent browser checks ran with the existing Playwright JavaScript test runtime; the modified Python script itself was not executed. No production dependencies or architecture changes were made.
 
-## User actions and remaining verification
+## Earlier review handoff (resolved by the live checks above)
 
 Provide the deployed public website URL, the owner email configured in OWNER_EMAILS, and a distinct customer email with accessible inboxes. Codes will be requested individually and the user asked for each code. Keep AUTH_SECRET private.
 
