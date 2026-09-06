@@ -1,5 +1,10 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {fixture}=require('./auth-fixture.cjs');
+test('Password length is 5–128 with no character-class requirements',()=>{
+ const {c}=fixture();
+ for(const password of ['abcde','12345','abc12','mart1','ABCDE','!!!!!','x'.repeat(128)])assert.equal(c.password_(password),password);
+ for(const password of ['','abcd','1234','x'.repeat(129),null,12345])assert.throws(()=>c.password_(password),/between 5 and 128/);
+});
 test('PBKDF2 SHA256 at full work factor matches Node crypto',()=>{
  const {c}=fixture();const start=Date.now();
  assert.equal(c.derivePassword_('A test passphrase 🔐','fixed-vector-salt',600000),crypto.pbkdf2Sync('A test passphrase 🔐','fixed-vector-salt',600000,32,'sha256').toString('hex'));

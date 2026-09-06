@@ -7,7 +7,7 @@ function owner_(email){return setting_('OWNER_EMAILS').split(',').map(s=>s.trim(
 function publicUser_(u){return {user_id:u.user_id,name:u.name,email:u.email,role:owner_(u.email)?'owner':'customer',status:u.status,email_verified:ChatEngine.active(u.email_verified),created_at:u.created_at,last_login:u.last_login};}
 function findUser_(email){const matches=rows_('Users').filter(u=>String(u.email).trim().toLowerCase()===email);if(matches.length>1)throw new Error('ACCOUNT_DATA_ERROR');return matches[0];}
 function rate_(key,limit,seconds){const props=PropertiesService.getScriptProperties(),name='RATE_'+hash_(key);let record;try{record=JSON.parse(props.getProperty(name)||'null');}catch(e){}if(!record||record.until<Date.now())record={count:0,until:Date.now()+seconds*1000};if(record.count>=limit)throw new Error('Too many requests. Please try again later.');record.count++;props.setProperty(name,JSON.stringify(record));}
-function password_(value){if(typeof value!=='string'||value.length<15||value.length>128)throw new Error('Enter a password between 15 and 128 characters.');return value;}
+function password_(value){if(typeof value!=='string'||value.length<5||value.length>128)throw new Error('Enter a password between 5 and 128 characters.');return value;}
 function derivePassword_(password,salt,iterations){if(iterations!==600000)throw new Error('PASSWORD_FORMAT_ERROR');return sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(password,salt,iterations,256));}
 function equal_(a,b){a=String(a||'');b=String(b||'');let diff=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)diff|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return diff===0;}
 function requestCode_(payload){
