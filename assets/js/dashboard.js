@@ -1,15 +1,16 @@
 import { api } from './api.js';
 import { config } from './config.js';
 import { el } from './dom.js';
+import { currentUser, signOut } from './session.js';
 const main=document.getElementById('main');
 async function start(){
   if(config.preview)throw new Error('The owner dashboard requires the live service and an authorized owner sign-in. Preview mode never grants access to private records.');
-  const {user}=await api('me');if(user.role!=='owner')throw new Error('This page is reserved for the owner. Please sign in with an authorized owner email.');
+  const user=currentUser;if(user.role!=='owner')throw new Error('This page is reserved for the owner. Please sign in with an authorized owner email.');
   main.innerHTML=`<div class="container dashboard-shell"><div class="dashboard-header"><div><p class="eyebrow">U&I MART / OWNER WORKSPACE</p><h1>Your business, at a glance.</h1><p id="owner-name"></p></div><button id="logout" class="button secondary">Sign out</button></div><div class="summary-grid" id="summary"></div><div class="dashboard-tabs" aria-label="Dashboard sections">${[['chats','Conversations'],['users','Users'],['logins','Login records'],['activities','Activity logs'],['deals','Deals'],['branches','Branches']].map(([id,label])=>`<button class="filter" data-tab="${id}" aria-pressed="${id==='chats'}">${label}</button>`).join('')}<button id="refresh" class="filter">↻ Refresh</button></div><p class="status" id="dashboard-status" role="status" aria-live="polite"></p><div class="records" id="records"></div><div class="pagination"><button class="button secondary" id="previous">← Previous</button><span id="page-count"></span><button class="button secondary" id="next">Next →</button></div></div>`;
   document.getElementById('owner-name').textContent=`Signed in as ${user.name} · ${user.email}`;
   let tab='chats',offset=0,busy=false;
   const state=document.getElementById('dashboard-status');
-  document.getElementById('logout').addEventListener('click',async e=>{e.target.disabled=true;try{await api('logout');sessionStorage.removeItem('ui_auth');location.href='login.html';}catch(error){state.textContent=error.message;e.target.disabled=false;}});
+  document.getElementById('logout').addEventListener('click',async e=>{e.target.disabled=true;try{await signOut();}catch(error){state.textContent=error.message;e.target.disabled=false;}});
   async function load(){
     if(busy)return;busy=true;state.textContent='Loading records…';
     const controls=document.querySelectorAll('.dashboard-tabs button,.pagination button');controls.forEach(b=>b.disabled=true);
@@ -38,5 +39,5 @@ async function start(){
   await load();
 }
 try{await start();}catch(error){
-  main.replaceChildren();const box=el('div','container dashboard-message');box.append(el('p','eyebrow','OWNER WORKSPACE'),el('h1','','Sign in to continue'),el('p','',error.message));const link=el('a','button','Go to sign in ↗');link.href='login.html';box.append(link);main.append(box);
+  main.replaceChildren();const box=el('div','container dashboard-message');box.append(el('p','eyebrow','OWNER WORKSPACE'),el('h1','','Owner access required'),el('p','',error.message));const link=el('a','button','Back to home ↗');link.href='../index.html';box.append(link);main.append(box);
 }

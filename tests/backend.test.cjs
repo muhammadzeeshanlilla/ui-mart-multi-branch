@@ -50,31 +50,7 @@ context.update_=(name,key,value,patch)=>{const row=(db[name]||[]).find(r=>r[key]
 context.Utilities={getUuid:()=>crypto.randomUUID(),computeHmacSha256Signature:(v,k)=>crypto.createHmac('sha256',k).update(v).digest(),base64EncodeWebSafe:v=>Buffer.from(v).toString('base64url'),computeDigest:(_,v)=>Array.from(crypto.createHash('sha256').update(v).digest()),DigestAlgorithm:{SHA_256:'SHA256'}};
 let lastMail;context.MailApp={sendEmail:m=>{lastMail=m;}};
 context.DataService.saveLoginLog=r=>db.Login_Logs.push(r);context.DataService.saveActivityLog=r=>db.Activity_Logs.push(r);
-test('OTP lifecycle, owner gate, token hashing, logout and replay protection',()=>{
-  context.requestCode_({email:'owner@example.test'});
-  const code=lastMail.body.match(/\d{8}/)[0];assert.notEqual(db._AuthCodes[0].code_hash,code);
-  assert.throws(()=>context.verifyCode_({email:'owner@example.test',code:'00000000',session_id:'test'}),/incorrect/);
-  const signed=context.verifyCode_({email:'owner@example.test',code,session_id:'test',role:'customer'});
-  assert.equal(signed.user.role,'owner');assert.notEqual(db._Sessions[0].token_hash,signed.token);
-  assert.equal(context.authenticate_(signed.token,true).role,'owner');
-  assert.throws(()=>context.verifyCode_({email:'owner@example.test',code}),/expired/);
-  context.logout_(signed.token);assert.throws(()=>context.authenticate_(signed.token,true),/expired/);
-  assert.ok(db.Login_Logs.some(r=>r.logout_time));
-});
-test('Customer cannot promote self or read dashboard',()=>{
-  context.requestCode_({email:'customer@example.test'});const code=lastMail.body.match(/\d{8}/)[0];
-  const signed=context.verifyCode_({email:'customer@example.test',code,role:'owner',session_id:'test'});
-  assert.equal(signed.user.role,'customer');assert.throws(()=>context.dashboard_(context.authenticate_(signed.token,true),{}),/Owner access/);
-  assert.throws(()=>context.authenticate_('',true),/sign in/);
-});
-test('Expired OTP, attempt limit and disabled users fail closed',()=>{
-  context.requestCode_({email:'expired@example.test'});db._AuthCodes.find(r=>r.email==='expired@example.test').expires_at=0;
-  assert.throws(()=>context.verifyCode_({email:'expired@example.test',code:'12345678'}),/expired/);
-  const row=db._AuthCodes.find(r=>r.email==='expired@example.test');row.expires_at=Date.now()+100000;row.attempts=5;
-  assert.throws(()=>context.verifyCode_({email:'expired@example.test',code:'12345678'}),/attempt limit/);
-  context.requestCode_({email:'customer@example.test'});db.Users.find(r=>r.email==='customer@example.test').status='disabled';
-  assert.throws(()=>context.verifyCode_({email:'customer@example.test',code:lastMail.body.match(/\d{8}/)[0]}),/not active/);
-});
+// Password/signup lifecycle coverage lives in password-auth.test.cjs.
 test('Unknown API operation cannot expose inventory or logs',()=>{
   context.LockService={getScriptLock:()=>({waitLock(){},releaseLock(){}})};
   context.ContentService={MimeType:{JSON:'json'},createTextOutput:text=>({setMimeType:()=>JSON.parse(text)})};
@@ -89,6 +65,7 @@ test('Chat rate window expires even while requests continue',()=>{
   cached=JSON.stringify({count:20,until:Date.now()-1});context.chatRate_('audit');assert.equal(JSON.parse(cached).count,1);assert.ok(ttl<=60);
 });
 test('Public deals read branch data once without taking the write lock',()=>{
+  context.authenticate_=()=>({user_id:'test'});
   let calls=0,locks=0;context.DataService.getBranches=()=>{calls++;return branches;};context.DataService.getDeals=()=>deals;
   context.LockService={getScriptLock:()=>({waitLock(){locks++;},releaseLock(){}})};
   const result=context.doPost({postData:{contents:JSON.stringify({action:'deals',session_id:'audit'})}});

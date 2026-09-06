@@ -1,6 +1,6 @@
 # U&I Mart Multi-Branch Website
 
-A responsive company website with three specialized branch experiences, a main-site customer assistant, Google Sheets / Apps Script backend, passwordless email login and a private owner monitoring dashboard.
+A responsive company website with three specialized branch experiences, a main-site customer assistant, Google Sheets / Apps Script backend, email-verified signup and password login and a private owner monitoring dashboard.
 
 The original project is preserved in its separate folder. This project is independent and contains no dependency on its files or backend URL.
 
@@ -14,7 +14,7 @@ python -m http.server 8080 --bind 127.0.0.1
 
 Open **http://localhost:8080**. Use an HTTP server instead of double-clicking HTML files: JavaScript modules require HTTP. No application dependencies, package install or build step is required.
 
-The default is a **clearly labelled preview**. The assistant and promotions use fictitious sample records. No email is sent, no private records are accessible and no preview conversations are saved. Preview mode never grants owner access. To use your real data, complete [the setup guide](docs/setup-guide.md).
+The live configuration uses authenticated data access. Follow [the password-auth migration and deployment guide](docs/password-auth-update.md) for the current signup/login contract. Previous OTP-only accounts complete Sign Up once to set a password.
 
 ## Features
 
@@ -23,7 +23,7 @@ The default is a **clearly labelled preview**. The assistant and promotions use 
 - Main-site assistant with English / Roman Urdu phrase handling, synonyms, one-edit typo tolerance, branch-aware product matching, basic follow-up context and structured product / deal / contact responses.
 - Product details appear only in assistant conversations. Prices use AED. Public branch pages have no inventory listing.
 - Public promotions filter by branch, active status and inclusive UAE dates.
-- Secure email-code registration / sign-in, hashed codes and session tokens, expiry, rate limits, logout revocation, and owner permissions verified by the backend.
+- Email-verified registration and password sign-in, hashed codes and session tokens, expiry, rate limits, logout revocation, and owner permissions verified by the backend.
 - Owner monitoring of users, login records, conversation questions and full replies, activity logs, deals and branch information, with 25-record pagination.
 - Spreadsheet setup and synchronization functions, separate named-record data adapter, consistent API, and static-host-compatible frontend.
 
@@ -38,7 +38,8 @@ apps-script/                    Deployable Google Apps Script backend
   Code.gs                       API routing, validation, chat orchestration
   Store.gs                      Schema, Sheets adapter, sync, setup, triggers
   Chatbot.gs                    Pure intent/search/response engine
-  Auth.gs                       Email codes, sessions, authorization, cleanup
+  Auth.gs                       Signup verification, password login, sessions
+  PasswordCrypto.gs             Server-only PBKDF2 primitives
   Logs.gs                       Activity logging and owner dashboard reads
   appsscript.json                Runtime, timezone and scopes
 docs/                           Setup, schema, architecture, testing and provenance
@@ -49,7 +50,7 @@ tests/                          Backend/security and real-browser tests
 ## Connect Google Sheets
 
 1. Create **one private spreadsheet**, then open **Extensions → Apps Script**.
-2. Add the five `.gs` files and the `appsscript.json` manifest from `apps-script/`.
+2. Add all six `.gs` files and the `appsscript.json` manifest from `apps-script/`.
 3. Set Script Properties `SPREADSHEET_ID` and `OWNER_EMAILS` (comma-separated owner email addresses). Never put these or the generated `AUTH_SECRET` in frontend JavaScript.
 4. Run `setup()` and authorize access. It creates all required tabs and three branch records, without inventing business stock or contact information.
 5. Fill branch information, product records and promotions using [the schema guide](docs/google-sheet-structure.md). Run `installTriggers()`.
@@ -69,7 +70,7 @@ All old branding, store-specific content, colors, names, currency, delivery rule
 With Node.js installed:
 
 ```powershell
-node --test tests/backend.test.cjs
+node --test tests/backend.test.cjs tests/account-review.test.cjs tests/password-auth.test.cjs
 ```
 
 For browser tests on Windows with Microsoft Edge installed:
@@ -79,7 +80,7 @@ python -m pip install --target .tools playwright
 python tests/browser_test.py
 ```
 
-These tests start their own local server. Playwright, screenshots and temporary test outputs are ignored by Git. See [test coverage and live verification](docs/testing.md).
+The browser tests serve local assets through Playwright routes and emulate Google services; they do not start a production backend. Playwright, screenshots and temporary test outputs are ignored by Git. See [test coverage and live verification](docs/testing.md).
 
 When changing the assistant engine, edit `apps-script/Chatbot.gs`, run `python scripts/sync-engine.py`, then rerun tests and redeploy Apps Script.
 

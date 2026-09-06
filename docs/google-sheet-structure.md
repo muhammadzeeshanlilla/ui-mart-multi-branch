@@ -1,3 +1,5 @@
+Current signup/password migration: [deployment and added columns](password-auth-update.md). Password fields are backend-only and excluded from dashboard/API responses.
+
 # One spreadsheet, separate responsibilities
 
 Run `setup()` in the Apps Script editor to create these tabs and header rows. It is safe to rerun on a correctly configured spreadsheet: it does not overwrite existing source records. If existing headers do not include every required field, setup stops with a schema error. Add missing columns rather than renaming business data blindly.
@@ -12,7 +14,7 @@ Columns are matched by name, so source columns may be reordered. Keep header spe
 | `Chatbot_View` | `product_id`, `product_name`, `category`, `branch`, `description`, `price`, `quantity`, `stock_status`, `brand`, `unit`, `keywords`, `is_active` |
 | `Deals` | `deal_id`, `title`, `branch`, `category`, `product_id`, `description`, `discount_type`, `discount_value`, `free_item`, `start_date`, `end_date`, `image_url`, `is_active` |
 | `Branches` | `branch_id`, `branch_name`, `city`, `specialization`, `address`, `phone`, `whatsapp`, `email`, `map_url`, `opening_hours`, `description`, `is_active` |
-| `Users` | `user_id`, `name`, `email`, `role`, `status`, `created_at` |
+| `Users` | `user_id`, `name`, `email`, `role`, `status`, `created_at`, `email_verified`, `last_login`, `password_hash`, `password_salt`, `password_iterations` |
 | `Login_Logs` | `log_id`, `user_id`, `user_email`, `login_time`, `logout_time`, `status`, `session_id` |
 | `Chat_Logs` | `chat_id`, `session_id`, `user_id`, `user_name`, `user_message`, `bot_response`, `detected_intent`, `detected_branch`, `detected_category`, `detected_product`, `timestamp` |
 | `Activity_Logs` | `activity_id`, `user_id`, `session_id`, `action`, `description`, `timestamp` |

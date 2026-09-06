@@ -15,9 +15,10 @@ function doPost(e){
     const raw=e&&e.postData&&e.postData.contents;if(!raw||raw.length>12000)throw new Error('Invalid request.');
     let payload;try{payload=JSON.parse(raw);}catch(error){throw new Error('Invalid JSON request.');}
     if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Invalid request.');
-    const actions=['branches','deals','chat','requestCode','verifyCode','me','logout','dashboard'];
+    const actions=['branches','deals','chat','requestCode','verifyCode','login','me','logout','dashboard','contact'];
     if(!actions.includes(payload.action))throw new Error('Unknown action.');
     if(!/^[A-Za-z0-9_-]{3,64}$/.test(String(payload.session_id||'')))throw new Error('Invalid session identifier.');
+    if(['branches','deals'].includes(payload.action))authenticate_(payload.token,true);
     if(payload.action==='branches')return json_({success:true,branches:DataService.getBranches()});
     if(payload.action==='deals'){
       const activeBranches=DataService.getBranches();
@@ -27,9 +28,11 @@ function doPost(e){
     lock.waitLock(20000);locked=true;
     if(payload.action==='requestCode')return json_(requestCode_(payload));
     if(payload.action==='verifyCode')return json_(verifyCode_(payload));
+    if(payload.action==='login')return json_(login_(payload));
     if(payload.action==='logout')return json_(logout_(payload.token));
-    const user=authenticate_(payload.token,payload.action!=='chat');
-    if(payload.action==='me')return json_({success:true,user:{user_id:user.user_id,name:user.name,email:user.email,role:user.role}});
+    const user=authenticate_(payload.token,true);
+    if(payload.action==='me')return json_({success:true,user:publicUser_(user)});
+    if(payload.action==='contact')return json_(contact_(user,payload));
     if(payload.action==='dashboard')return json_(dashboard_(user,payload));
     const message=typeof payload.message==='string'?payload.message.trim():'';
     if(!message||message.length>500)throw new Error('Ask a question between 1 and 500 characters.');
@@ -41,8 +44,8 @@ function doPost(e){
     DataService.saveChatLog({chat_id:id_(),session_id:payload.session_id,user_id:user?user.user_id:'',user_name:user?user.name:'Guest',user_message:message,bot_response:JSON.stringify(result),detected_intent:result.intent,detected_branch:result.branch||'',detected_category:result.category||'',detected_product:result.products.map(p=>p.name).join(', '),timestamp:now_()});
     return json_(result);
   }catch(error){
-    const known=/^(Enter |Check |Code |The code |Too many |Please |Your session |This account |Owner access |Invalid |Unknown |Ask a question)/;
+    const known=/^(Enter |Check |Code |The code |Too many |Please |Your session |This account |This email |Email or password |Owner access |Invalid |Unknown |Ask a question)/;
     const message=known.test(error.message)?error.message:'The service is temporarily unavailable. Please try again later.';
-    console.error('U&I API error: '+error.message);return json_({success:false,message});
+    console.error('U&I API request failed');return json_({success:false,message,...(error.code==='AUTH_REQUIRED'?{code:'AUTH_REQUIRED'}:{})});
   }finally{if(locked)lock.releaseLock();}
 }

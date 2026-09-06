@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 function setup(){
-  const db={Users:[{user_id:'owner',email:'owner@example.test',role:'owner',status:'active'},{user_id:'customer',email:'customer@example.test',role:'customer',status:'active'}],_Sessions:[],Activity_Logs:[],Chat_Logs:[],Login_Logs:[],Deals:[],Branches:[{city:'Dubai',is_active:true}]};
+  const db={Users:[{user_id:'owner',email:'owner@example.test',role:'owner',status:'active',password_hash:'fixture',email_verified:true},{user_id:'customer',email:'customer@example.test',role:'customer',status:'active',password_hash:'fixture',email_verified:true}],_Sessions:[],Activity_Logs:[],Chat_Logs:[],Login_Logs:[],Deals:[],Branches:[{city:'Dubai',is_active:true}]};
   const c=vm.createContext({Date,console:{error(){}}});
   for(const f of ['Chatbot','Store','Auth','Logs','Code'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../apps-script/'+f+'.gs'),'utf8'),c);
   c.rows_=name=>db[name].map(row=>({...row})); c.append_=(name,row)=>db[name].push(row); c.id_=()=>String(Math.random());
@@ -31,11 +31,11 @@ test('Forged client role and stale Users role cannot grant owner access',()=>{
   assert.equal(request('me',{token:'customer',role:'owner'}).user.role,'customer');
   assert.equal(request('dashboard',{token:'customer',role:'owner',tab:'users'}).success,false);
 });
-test('Each guest/signed-in chat creates one attributed row without auth fields',()=>{
+test('Guest chats are blocked; signed-in chats create one attributed row',()=>{
   const {db,request,session}=setup();session('customer');
-  for(const token of ['', 'customer'])assert.equal(request('chat',{token,message:'Hello'}).success,true);
-  assert.equal(db.Chat_Logs.length,2);
-  assert.equal(db.Chat_Logs[0].user_id,'');assert.equal(db.Chat_Logs[1].user_id,'customer');
+  assert.equal(request('chat',{message:'Hello'}).code,'AUTH_REQUIRED');assert.equal(request('chat',{token:'customer',message:'Hello'}).success,true);
+  assert.equal(db.Chat_Logs.length,1);
+  assert.equal(db.Chat_Logs[0].user_id,'customer');
   for(const row of db.Chat_Logs){
     for(const field of ['chat_id','session_id','user_message','bot_response','detected_intent','timestamp'])assert.ok(row[field]);
     assert.doesNotMatch(JSON.stringify(row),/token_hash|code_hash|AUTH_SECRET|"token"/);

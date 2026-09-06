@@ -550,3 +550,4 @@
 }
 
 .ui-chat-panel{bottom:1.5rem;min-height:0}.ui-chat-launcher{background:#236554}.ui-chat-header{background:#174a3d}.ui-chat-status-dot{background:#c9ddcb}.ui-chat-avatar{font-size:.55rem}.ui-chat-brand-icon{font-size:.75rem}.ui-chat-input{font-size:16px}.ui-chat-product-meta{white-space:pre-wrap}.ui-chat-stock--in{color:#174a3d;background:#eaf1ed}@media(max-width:480px){.ui-chat-panel{bottom:.5rem;height:calc(100dvh - 1rem);max-height:680px}}
+@media(max-width:480px){.ui-chat-panel{min-height:0;max-height:calc(100dvh - 1rem)}.ui-chat-messages{overscroll-behavior:contain}.ui-chat-form{padding-bottom:max(.75rem,env(safe-area-inset-bottom))}}

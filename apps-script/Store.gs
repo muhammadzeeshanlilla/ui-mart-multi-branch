@@ -6,11 +6,11 @@ var Schema = {
   Chatbot_View:['product_id','product_name','category','branch','description','price','quantity','stock_status','brand','unit','keywords','is_active'],
   Deals:['deal_id','title','branch','category','product_id','description','discount_type','discount_value','free_item','start_date','end_date','image_url','is_active'],
   Branches:['branch_id','branch_name','city','specialization','address','phone','whatsapp','email','map_url','opening_hours','description','is_active'],
-  Users:['user_id','name','email','role','status','created_at'],
+  Users:['user_id','name','email','role','status','created_at','email_verified','last_login','password_hash','password_salt','password_iterations'],
   Login_Logs:['log_id','user_id','user_email','login_time','logout_time','status','session_id'],
   Chat_Logs:['chat_id','session_id','user_id','user_name','user_message','bot_response','detected_intent','detected_branch','detected_category','detected_product','timestamp'],
   Activity_Logs:['activity_id','user_id','session_id','action','description','timestamp'],
-  _AuthCodes:['email','code_hash','expires_at','attempts','sent_at'],
+  _AuthCodes:['email','code_hash','expires_at','attempts','sent_at','purpose','name','password_hash','password_salt','password_iterations'],
   _Sessions:['token_hash','user_id','session_id','expires_at','revoked'],
 };
 function setting_(key){return PropertiesService.getScriptProperties().getProperty(key)||'';}
@@ -56,6 +56,12 @@ function setup(){
     [['AD','Abu Dhabi','Electronics & Kitchen Items'],['DU','Dubai','Furniture & Kitchen Items'],['SH','Sharjah','Hardware, Pipes & Kitchen Items']].forEach(row=>append_('Branches',{branch_id:row[0],branch_name:'U&I Mart '+row[1],city:row[1],specialization:row[2],is_active:true}));
   }
   syncChatbotView();
+}
+// Run once before deploying password auth. Adds only new auth columns; preserves rows.
+function migratePasswordAuth(){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{['Users','_AuthCodes'].forEach(name=>{const sheet=sheet_(name),existing=headers_(sheet),missing=Schema[name].filter(h=>!existing.includes(h));if(missing.length)sheet.getRange(1,existing.length+1,1,missing.length).setValues([missing]);});}
+  finally{lock.releaseLock();}
 }
 function syncChatbotView(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{syncView_();}finally{lock.releaseLock();}}
 function syncView_(){

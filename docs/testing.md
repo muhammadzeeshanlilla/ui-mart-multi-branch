@@ -1,5 +1,7 @@
 # Testing and verification
 
+Current authentication is signup verification followed by password login. Use [the current migration/test guide](password-auth-update.md). The OTP-only live scripts describe the former contract and are not acceptance tests for this update.
+
 ## Automated checks
 
 `tests/backend.test.cjs` runs the real Apps Script JavaScript in Node's VM. Pure engine tests use fixture records; identity/router tests use an in-memory Sheets/Mail provider. These test behavior and access checks without claiming a deployed Google integration.
@@ -8,7 +10,7 @@ Coverage includes the 17 requested question variations, English and Roman Urdu c
 
 Authentication tests exercise single-use codes, expiry, attempt limits, token hashing, server owner checks, disabled users, logout revocation and forbidden API actions.
 
-`tests/browser_test.py` launches real headless Microsoft Edge and its own local server. It checks all eight pages at 1440, 768, 390 and 320 pixels, horizontal overflow, headings, mobile navigation, assistant presence only on the main page, chat product rendering, AED formatting, follow-ups, filters, deep linking and failed-request recovery. Intercepted API responses additionally verify the login → dashboard → logout UI contract; these are explicitly mocked, not Google account tests. Screenshots are written to the ignored `test-results/` directory.
+`tests/browser_test.py` now runs the current JavaScript Playwright tests (`auth-browser.test.cjs` and `consistency.test.cjs`) through the existing test runtime. They exercise the actual frontend against the Apps Script adapter, authenticated routes, account menu, contact mail payloads, caching, and mobile visible-viewport geometry. They do not send real emails.
 
 Run:
 
@@ -25,12 +27,12 @@ If Node is not installed, the test-only Playwright installation includes a runti
 
 After connecting Google, verify:
 
-1. An actual owner email receives a code; code reuse and wrong/expired codes fail.
+1. A customer and owner each verify signup once, then log in with email/password without another OTP.
 2. A separate customer email cannot access the dashboard, even after modifying client storage.
 3. Disabling a user or removing an owner email takes effect on the next protected API request.
 4. A branch product edit updates `Chatbot_View` and the assistant; quantities and prices remain separate for identical kitchen items in different branches.
 5. Future/expired/inactive deals are not publicly displayed. Empty or inactive branches never expose private records.
-6. A successful guest chat and signed-in chat create correct `Chat_Logs` entries, including the returned structured response. Login/logout and dashboard visits create expected logs.
+6. Guest chat is rejected; a successful signed-in chat creates correct `Chat_Logs` entries, including the returned structured response. Login/logout and dashboard visits create expected logs.
 7. All contact buttons use your real, verified details. No sample promotion is presented as a real offer.
 8. Frontend calls work from your chosen HTTPS static host. Test an unavailable endpoint and confirm an honest error without sample fallback.
 9. Test on a physical phone and with keyboard / screen reader navigation. Browser emulation verifies layout but cannot replace device-specific accessibility checks.

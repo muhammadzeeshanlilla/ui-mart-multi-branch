@@ -16,6 +16,26 @@ import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
 
     if (!launcher || !panel || !closeButton || !messages || !form || !input || !sendButton) return;
 
+    let lockedScroll=null;
+    function updateViewport(){
+        const mobile=window.matchMedia('(max-width: 480px)').matches;
+        const open=panel.classList.contains('is-open');
+        if(mobile&&open){
+            if(!lockedScroll){lockedScroll={y:window.scrollY,css:document.body.style.cssText};document.body.style.position='fixed';document.body.style.top=-lockedScroll.y+'px';document.body.style.width='100%';document.body.style.overflow='hidden';}
+            const viewport=window.visualViewport;
+            const height=viewport?.height||window.innerHeight,top=viewport?.offsetTop||0;
+            const panelHeight=Math.max(0,Math.min(680,height-16));
+            panel.style.top=(top+Math.max(8,height-panelHeight-8))+'px';panel.style.height=panelHeight+'px';panel.style.bottom='auto';
+            scrollToLatest();
+        }else{
+            panel.style.removeProperty('top');panel.style.removeProperty('height');panel.style.removeProperty('bottom');
+            if(lockedScroll){const previous=lockedScroll;lockedScroll=null;document.body.style.cssText=previous.css;window.scrollTo({top:previous.y,behavior:'instant'});}
+        }
+    }
+    window.visualViewport?.addEventListener('resize',updateViewport);
+    window.visualViewport?.addEventListener('scroll',updateViewport);
+    window.addEventListener('resize',updateViewport);
+
     panel.inert = true;
     document.querySelectorAll('[data-open-chat]').forEach(button => button.addEventListener('click', () => setPanelOpen(true)));
     if (location.hash === '#assistant') setPanelOpen(true);
@@ -57,10 +77,11 @@ import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
         panel.inert = !open;
         launcher.setAttribute('aria-expanded', String(open));
         launcher.setAttribute('aria-label', open ? 'Close customer assistant' : 'Open customer assistant');
+        updateViewport();
 
         if (open) {
             scrollToLatest();
-            window.setTimeout(function () { input.focus(); }, 80);
+            window.setTimeout(function () { input.focus({preventScroll:true}); }, 80);
         } else {
             launcher.focus();
         }
@@ -89,7 +110,7 @@ import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
             isSending = false;
             setLoadingState(false);
             scrollToLatest();
-            if (panel.classList.contains('is-open')) input.focus();
+            if (panel.classList.contains('is-open')) input.focus({preventScroll:true});
         }
     }
 
@@ -197,7 +218,7 @@ import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
                 } else {
                     input.value = action.value;
                     updateSendButton();
-                    input.focus();
+                    input.focus({preventScroll:true});
                     input.setSelectionRange(input.value.length, input.value.length);
                 }
             });

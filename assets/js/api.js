@@ -17,7 +17,7 @@ export async function api(action, payload = {}) {
     throw new Error('The service is not connected yet. Please try again later.');
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+  const timer = setTimeout(() => controller.abort(), ['requestCode','login'].includes(action)?120000:config.timeoutMs);
   try {
     // Retained from the original integration: a simple POST avoids a CORS preflight.
     const response = await fetch(config.apiUrl, {
@@ -27,7 +27,11 @@ export async function api(action, payload = {}) {
     });
     if (!response.ok) throw new Error('The service could not be reached. Please try again.');
     const data = await response.json();
-    if (!data || data.success !== true) throw new Error(data?.message || 'The request could not be completed.');
+    if (!data || data.success !== true) {
+      const error=new Error(data?.message || 'The request could not be completed.');error.code=data?.code;
+      if(error.code==='AUTH_REQUIRED'){sessionStorage.removeItem('ui_auth');sessionStorage.removeItem('ui_shared_branches');sessionStorage.removeItem('ui_shared_deals');window.dispatchEvent(new Event('auth-expired'));}
+      throw error;
+    }
     return data;
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('The service took too long. Please try again.');

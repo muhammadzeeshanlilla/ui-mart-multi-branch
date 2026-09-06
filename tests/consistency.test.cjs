@@ -84,6 +84,7 @@ test('Browser: live branch facts, contacts, inactive/error states, deals and two
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     const page = await browser.newPage();
+    await page.addInitScript(() => sessionStorage.setItem('ui_auth', JSON.stringify({token:'test-token'})));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     let records = structuredClone(branches), failBranches = false;
@@ -98,7 +99,8 @@ test('Browser: live branch facts, contacts, inactive/error states, deals and two
     await page.route('https://script.google.com/**', route => {
       const payload = route.request().postDataJSON(); calls.push(payload.action);
       let response;
-      if (payload.action === 'branches') response = failBranches ? { success: false, message: 'Branch service unavailable' } : { success: true, branches: records };
+      if (payload.action === 'me') response = {success:true,user:{user_id:'test',name:'Test Customer',email:'test@example.test',role:'customer'}};
+      else if (payload.action === 'branches') response = failBranches ? { success: false, message: 'Branch service unavailable' } : { success: true, branches: records };
       else if (payload.action === 'deals') response = { success: true, deals };
       else if (payload.action === 'chat') response = answer(payload.message);
       else throw Error('Unexpected action: ' + payload.action);
@@ -150,11 +152,12 @@ test('Browser: live branch facts, contacts, inactive/error states, deals and two
     assert.match(chat, /Hardware tools offer.*10% off/s);
     assert.match(chat, /Furniture offer.*free Kitchen Cookware Set/s);
     failBranches = true;
+    await page.evaluate(()=>{sessionStorage.removeItem('ui_shared_branches');sessionStorage.removeItem('ui_shared_deals');});
     await page.goto('http://localhost/index.html'); await page.waitForSelector('#branches .empty-state');
     assert.match(await page.locator('#branches').innerText(), /Branch service unavailable/);
     await page.goto('http://localhost/pages/contact.html'); await page.waitForSelector('#contacts .empty-state');
     assert.match(await page.locator('#contacts').innerText(), /Branch service unavailable/);
     assert.deepEqual(errors, []);
-    assert.ok(calls.every(a => ['branches', 'deals', 'chat'].includes(a)));
+    assert.ok(calls.every(a => ['me', 'branches', 'deals', 'chat'].includes(a)));
   } finally { await browser.close(); }
 });
