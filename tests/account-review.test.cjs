@@ -31,11 +31,12 @@ test('Forged client role and stale Users role cannot grant owner access',()=>{
   assert.equal(request('me',{token:'customer',role:'owner'}).user.role,'customer');
   assert.equal(request('dashboard',{token:'customer',role:'owner',tab:'users'}).success,false);
 });
-test('Guest chats are blocked; signed-in chats create one attributed row',()=>{
+test('Guest chats stay anonymous; signed-in chats create an attributed row',()=>{
   const {db,request,session}=setup();session('customer');
-  assert.equal(request('chat',{message:'Hello'}).code,'AUTH_REQUIRED');assert.equal(request('chat',{token:'customer',message:'Hello'}).success,true);
-  assert.equal(db.Chat_Logs.length,1);
-  assert.equal(db.Chat_Logs[0].user_id,'customer');
+  assert.equal(request('chat',{message:'Hello'}).success,true);assert.equal(request('chat',{token:'customer',message:'Hello'}).success,true);
+  assert.equal(db.Chat_Logs.length,2);
+  assert.equal(db.Chat_Logs[0].user_id,'');assert.equal(db.Chat_Logs[0].user_name,'Guest');
+  assert.equal(db.Chat_Logs[1].user_id,'customer');
   for(const row of db.Chat_Logs){
     for(const field of ['chat_id','session_id','user_message','bot_response','detected_intent','timestamp'])assert.ok(row[field]);
     assert.doesNotMatch(JSON.stringify(row),/token_hash|code_hash|AUTH_SECRET|"token"/);

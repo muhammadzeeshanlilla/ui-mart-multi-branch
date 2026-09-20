@@ -30,10 +30,11 @@ function doPost(e){
     if(payload.action==='verifyCode')return json_(verifyCode_(payload));
     if(payload.action==='login')return json_(login_(payload));
     if(payload.action==='logout')return json_(logout_(payload.token));
-    const user=authenticate_(payload.token,true);
-    if(payload.action==='me')return json_({success:true,user:publicUser_(user)});
-    if(payload.action==='contact')return json_(contact_(user,payload));
-    if(payload.action==='dashboard')return json_(dashboard_(user,payload));
+    if(payload.action==='me')return json_({success:true,user:publicUser_(authenticate_(payload.token,true))});
+    if(payload.action==='contact')return json_(contact_(authenticate_(payload.token,true),payload));
+    if(payload.action==='dashboard')return json_(dashboard_(authenticate_(payload.token,true),payload));
+    // Chat is public on the login page. A valid token attributes the chat; guests stay anonymous.
+    const user=authenticate_(payload.token,false);
     const message=typeof payload.message==='string'?payload.message.trim():'';
     if(!message||message.length>500)throw new Error('Ask a question between 1 and 500 characters.');
     // Global persistent ceiling plus per-session cache rate. Do not trust a client ID as identity.

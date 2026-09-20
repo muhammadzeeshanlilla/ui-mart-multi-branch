@@ -84,7 +84,7 @@ test('Browser: live branch facts, contacts, inactive/error states, deals and two
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     const page = await browser.newPage();
-    await page.addInitScript(() => sessionStorage.setItem('ui_auth', JSON.stringify({token:'test-token'})));
+    await page.addInitScript(() => { if(!sessionStorage.getItem('skip_test_auth')) sessionStorage.setItem('ui_auth', JSON.stringify({token:'test-token'})); });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     let records = structuredClone(branches), failBranches = false;
@@ -143,7 +143,8 @@ test('Browser: live branch facts, contacts, inactive/error states, deals and two
     await page.getByRole('button', { name: 'Dubai', exact: true }).click();
     assert.equal(await page.locator('.deal-card').count(), 1);
     assert.equal((await page.locator('.deal-card').innerText()).match(/Kitchen Cookware Set/g).length, 1);
-    await page.goto('http://localhost/index.html#assistant'); await page.waitForSelector('#uiChatPanel.is-open');
+    await page.evaluate(()=>{sessionStorage.setItem('skip_test_auth','1');sessionStorage.removeItem('ui_auth');});
+    await page.goto('http://localhost/pages/login.html'); await page.waitForSelector('#uiChatLauncher:visible');await page.locator('#uiChatLauncher').click();await page.waitForSelector('#uiChatPanel.is-open');
     for (const question of ['What are the Sharjah hardware deals?', 'What are the Dubai furniture deals?']) {
       await page.locator('#uiChatInput').fill(question); await page.locator('#uiChatSend').click();
       await page.waitForFunction(() => !document.querySelector('#uiChatInput').disabled);
@@ -151,6 +152,8 @@ test('Browser: live branch facts, contacts, inactive/error states, deals and two
     const chat = await page.locator('#uiChatMessages').innerText();
     assert.match(chat, /Hardware tools offer.*10% off/s);
     assert.match(chat, /Furniture offer.*free Kitchen Cookware Set/s);
+    assert.equal(await page.locator('#uiChatbot').count(),1);
+    await page.evaluate(()=>{sessionStorage.removeItem('skip_test_auth');sessionStorage.setItem('ui_auth',JSON.stringify({token:'test-token'}));});
     failBranches = true;
     await page.evaluate(()=>{sessionStorage.removeItem('ui_shared_branches');sessionStorage.removeItem('ui_shared_deals');});
     await page.goto('http://localhost/index.html'); await page.waitForSelector('#branches .empty-state');

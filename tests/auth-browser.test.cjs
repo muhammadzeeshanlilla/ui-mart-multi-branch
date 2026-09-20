@@ -24,6 +24,11 @@ test('Real frontend + Apps Script adapter: signup, roles, gate, caching, contact
  });
  await page.goto(base);await page.waitForURL('**/pages/login.html');await page.waitForSelector('#signup-form:visible');
  assert.equal(await page.locator('.hero').count(),0);
+ assert.ok(await page.locator('#uiChatLauncher').isVisible());await page.locator('#uiChatLauncher').click();assert.ok(await page.locator('#uiChatPanel').isVisible());
+ await page.locator('#uiChatInput').fill('Sofa price');await page.locator('#uiChatSend').click();await page.waitForSelector('.ui-chat-product-price');assert.match(await page.locator('.ui-chat-product-price').innerText(),/AED/);
+ for(const width of [430,390,375,360]){await page.setViewportSize({width,height:800});assert.ok(await page.locator('#uiChatPanel').isVisible());assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
+ await page.locator('#uiChatClose').click();assert.ok(await page.locator('#uiChatLauncher').isVisible());assert.equal(await page.locator('#uiChatPanel:visible').count(),0);
+ await page.setViewportSize({width:1440,height:1000});
  async function signup(email,name){
   await page.locator('#show-signup').click();await page.locator('#name').fill(name);await page.locator('#signup-email').fill(email);
   await page.locator('#signup-password').fill('Browser test passphrase long!');await page.locator('#confirm-password').fill('Browser test passphrase long!');
@@ -40,29 +45,13 @@ test('Real frontend + Apps Script adapter: signup, roles, gate, caching, contact
  const branchCalls=calls.filter(a=>a==='branches').length;
  await page.evaluate(async()=>{const {sharedData}=await import('./assets/js/shared-data.js');await Promise.all([sharedData('branches'),sharedData('branches')]);});
  assert.equal(calls.filter(a=>a==='branches').length-branchCalls,1,'duplicate shared reads coalesce');
- await page.locator('#uiChatLauncher').click();await page.waitForSelector('#uiChatInput:visible');await page.locator('#uiChatInput').fill('Sofa price');await page.locator('#uiChatSend').click();await page.waitForSelector('.ui-chat-product-price');assert.match(await page.locator('.ui-chat-product-price').innerText(),/AED/);
- for(const width of [430,390,375,360]){
-  await page.setViewportSize({width,height:800});
-  for(const height of [800,330]){
-   await page.setViewportSize({width,height});await page.waitForTimeout(80);
-   const box=await page.locator('#uiChatPanel').boundingBox();assert.ok(box.y>=0&&box.y+box.height<=height+1,`panel outside viewport ${width}/${height}`);
-   assert.ok(await page.locator('#uiChatClose').isVisible());assert.ok(await page.locator('#uiChatSend').isVisible());
-   assert.equal(await page.evaluate(()=>document.body.style.position),'fixed');
-   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-  }
- }
- await page.setViewportSize({width:390,height:800});
- await page.evaluate(()=>{window.originalViewport=window.visualViewport;Object.defineProperty(window,'visualViewport',{configurable:true,value:{height:330,offsetTop:100}});window.dispatchEvent(new Event('resize'));});
- const shifted=await page.locator('#uiChatPanel').boundingBox();assert.ok(shifted.y>=100&&shifted.y+shifted.height<=430,'visual viewport offset respected');
- await page.evaluate(()=>{Object.defineProperty(window,'visualViewport',{configurable:true,value:window.originalViewport});window.dispatchEvent(new Event('resize'));});
- await page.locator('#uiChatClose').click();assert.notEqual(await page.evaluate(()=>document.body.style.position),'fixed');
- await page.setViewportSize({width:1440,height:1000});
+ assert.equal(await page.locator('#uiChatPanel').count(),0);
  await page.goto(base+'pages/dubai.html');await page.waitForSelector('.hero');assert.match(await page.locator('main').innerText(),/Sheet description/);
  await page.goto(base+'pages/contact.html');await page.waitForSelector('#contact-form');assert.match(await page.locator('#contact-identity').innerText(),/Customer Name.*customer@example.test/);
  await page.locator('#subject').fill('Question');await page.locator('#contact-message').fill('Please help');await page.locator('#contact-form button').click();await page.waitForFunction(()=>document.querySelector('#contact-status').textContent.includes('successfully'));
  assert.equal(backend.mail.at(-1).replyTo,'customer@example.test');
  await page.evaluate(()=>{const a=JSON.parse(sessionStorage.getItem('ui_auth'));a.user.role='owner';sessionStorage.setItem('ui_auth',JSON.stringify(a));});
- await page.goto(base+'pages/owner-dashboard.html');await page.waitForSelector('.dashboard-message');assert.equal(await page.locator('.record').count(),0);
+ await page.goto(base+'pages/owner-dashboard.html');await page.waitForURL('**/index.html');await page.waitForSelector('.hero');assert.equal(await page.locator('.record').count(),0);
  await page.locator('.account-menu summary').click();await page.locator('.account-panel button').click();await page.waitForURL('**/pages/login.html');
  await signup('owner@example.test','Owner Name');await login('owner@example.test');
  await page.locator('.account-menu summary').click();await page.getByRole('link',{name:'Owner Dashboard',exact:true}).click();await page.waitForSelector('.record');

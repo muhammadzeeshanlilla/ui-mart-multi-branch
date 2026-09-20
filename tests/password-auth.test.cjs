@@ -23,8 +23,9 @@ test('Customer signup verifies only; password login, private routes, logging, co
  assert.ok(db.Users[0].last_login);assert.equal(mail.length,1,'normal login sends no OTP');
  assert.doesNotMatch(JSON.stringify(login),/password_hash|password_salt|AUTH_SECRET/);
  const token=login.token;assert.equal(call('dashboard',{token,role:'owner'}).success,false);
- for(const action of ['branches','deals','chat','contact','me','dashboard'])assert.equal(call(action,{message:'Hello',subject:'Hi'}).code,'AUTH_REQUIRED');
- assert.equal(call('chat',{token,message:'Hello'}).success,true);assert.equal(db.Chat_Logs.length,1);assert.equal(db.Chat_Logs[0].user_id,login.user.user_id);
+ for(const action of ['branches','deals','contact','me','dashboard'])assert.equal(call(action,{message:'Hello',subject:'Hi'}).code,'AUTH_REQUIRED');
+ assert.equal(call('chat',{message:'Hello'}).success,true);assert.equal(db.Chat_Logs[0].user_name,'Guest');
+ assert.equal(call('chat',{token,message:'Hello'}).success,true);assert.equal(db.Chat_Logs.length,2);assert.equal(db.Chat_Logs[1].user_id,login.user.user_id);
  assert.equal(call('contact',{token,subject:'Question',message:'Please contact me',email:'attacker@example.test',to:'attacker@example.test'}).success,true);
  assert.equal(mail.at(-1).to,'owner@example.test');assert.equal(mail.at(-1).replyTo,email);assert.ok(mail.at(-1).body.includes(login.user.user_id));
  assert.equal(call('contact',{token,subject:'bad\nheader',message:'test'}).success,false);

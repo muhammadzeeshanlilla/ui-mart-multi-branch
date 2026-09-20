@@ -13,11 +13,16 @@ import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
     const form = document.getElementById('uiChatForm');
     const input = document.getElementById('uiChatInput');
     const sendButton = document.getElementById('uiChatSend');
+    const embedded = document.getElementById('uiChatbot')?.classList.contains('ui-chatbot--embedded');
 
     if (!launcher || !panel || !closeButton || !messages || !form || !input || !sendButton) return;
 
     let lockedScroll=null;
     function updateViewport(){
+        if(embedded){
+            panel.style.removeProperty('top');panel.style.removeProperty('height');panel.style.removeProperty('bottom');
+            return;
+        }
         const mobile=window.matchMedia('(max-width: 480px)').matches;
         const open=panel.classList.contains('is-open');
         if(mobile&&open){
