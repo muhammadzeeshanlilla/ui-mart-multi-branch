@@ -5,8 +5,8 @@ function renderDashboardValidationShell(){
   document.getElementById('main').innerHTML='<div class="container dashboard-shell dashboard-validation-shell"><div class="dashboard-header"><div><p class="eyebrow">U&I MART / OWNER WORKSPACE</p><h1>Your business, at a glance.</h1></div></div><span class="inline-loader" role="status" aria-label="Loading"></span></div>';
 }
 if(isLogin){
-  await import('./auth.js?v=20260920-3');
-  await import('./chatbot.js?v=20260920-3');
+  await import('./auth.js?v=20260922-2');
+  await import('./chatbot.js?v=20260922-3');
 }else{
   window.addEventListener('auth-expired',()=>location.replace(loginUrl()));
   try{

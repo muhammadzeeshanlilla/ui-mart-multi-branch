@@ -20,7 +20,29 @@ import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
     let lockedScroll=null;
     function updateViewport(){
         if(embedded){
-            panel.style.removeProperty('top');panel.style.removeProperty('height');panel.style.removeProperty('bottom');
+            const open=panel.classList.contains('is-open');
+            if(open&&!lockedScroll){
+                lockedScroll={y:window.scrollY,css:document.body.style.cssText};
+                document.body.style.position='fixed';
+                document.body.style.top=-lockedScroll.y+'px';
+                document.body.style.width=document.documentElement.clientWidth+'px';
+                document.body.style.overflow='hidden';
+            }
+            if(open&&window.matchMedia('(max-width: 580px)').matches){
+                const viewport=window.visualViewport;
+                const height=viewport?.height||window.innerHeight,top=viewport?.offsetTop||0;
+                const panelHeight=Math.max(0,Math.min(560,height-24));
+                panel.style.top=(top+Math.max(12,height-panelHeight-12))+'px';
+                panel.style.height=panelHeight+'px';
+                panel.style.bottom='auto';
+            }else{
+                panel.style.removeProperty('top');panel.style.removeProperty('height');panel.style.removeProperty('bottom');
+            }
+            if(!open&&lockedScroll){
+                const previous=lockedScroll;lockedScroll=null;
+                document.body.style.cssText=previous.css;
+                window.scrollTo({top:previous.y,behavior:'instant'});
+            }
             return;
         }
         const mobile=window.matchMedia('(max-width: 480px)').matches;
@@ -62,6 +84,23 @@ import { telephoneUrl, whatsappUrl, dealBenefits, date } from './dom.js';
     closeButton.addEventListener('click', function () {
         setPanelOpen(false);
     });
+
+    if(embedded){
+        let dismissingOutside=false;
+        document.addEventListener('pointerdown',function(event){
+            dismissingOutside=false;
+            if(!panel.classList.contains('is-open')||panel.contains(event.target)||launcher.contains(event.target))return;
+            dismissingOutside=true;
+            event.preventDefault();event.stopPropagation();setPanelOpen(false);
+        },true);
+        document.addEventListener('click',function(event){
+            const outside=panel.classList.contains('is-open')&&!panel.contains(event.target)&&!launcher.contains(event.target);
+            if(!dismissingOutside&&!outside)return;
+            dismissingOutside=false;
+            event.preventDefault();event.stopImmediatePropagation();
+            if(outside)setPanelOpen(false);
+        },true);
+    }
 
     input.addEventListener('input', updateSendButton);
 
