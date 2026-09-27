@@ -57,10 +57,11 @@ const loader = () => '<span class="inline-loader" role="status" aria-label="Load
 const cards = () => !branches.length ? `<p class="empty-state">${escapeHtml(branchError || "Branch details will be published soon.")}</p>` : `<div class="branch-grid">${branches.map((b,i)=>`<a class="branch-card" href="${href(b.id)}"><div class="branch-photo"><img src="${photo(b.id,650)}" alt="${b.category} inspiration" loading="lazy"><span class="branch-chip">0${i+1} &nbsp; ${b.cityUpper}</span></div><div class="branch-body"><h3>${b.branch_name}</h3><p class="category">${b.category}</p><p>${b.intro || b.text}</p><div class="branch-bottom">Explore ${b.city}<span aria-hidden="true">↗</span></div></div></a>`).join('')}</div>`;
 const features = () => `<section class="soft-section section"><div class="container">${heading('THE U&I DIFFERENCE','Different needs. The same care.')}<div class="feature-grid"><article><div class="feature-icon" aria-hidden="true">◎</div><h3>Specialists in every branch</h3><p>A focused selection in each city makes it easier to find the right place for what you need.</p></article><article><div class="feature-icon" aria-hidden="true">◇</div><h3>Everyday essentials, together</h3><p>Kitchen items connect all three branches, alongside each location’s own specialty.</p></article><article><div class="feature-icon" aria-hidden="true">✧</div><h3>Here when you need us</h3><p>Find branch details, opening hours and current promotions across the U&I Mart website.</p></article></div></div></section>`;
 const dealsSection = () => `<section class="container section">${heading('A LITTLE MORE VALUE','Good things, better together.',`<a class="text-link" href="${href('deals')}">View all deals ↗</a>`)}<div id="deals-list" class="deals-grid" aria-live="polite">${loader()}</div></section>`;
+const featuredDealsSection = () => `<section class="container section" aria-labelledby="featured-deals-title"><div class="section-heading"><div><p class="eyebrow">FEATURED DEALS</p><h2 id="featured-deals-title">Best deals from every branch.</h2><p>A special offer from each U&I Mart branch.</p></div><a class="text-link" href="pages/deals.html">View all deals ↗</a></div><div id="featured-deals-list" class="deals-grid featured-deals-grid" aria-live="polite">${loader()}</div></section>`;
 
 function renderPage(){
 if (page==='home') {
-  main.innerHTML = `<section class="hero container"><div class="hero-grid"><div class="hero-copy"><p class="eyebrow">WELCOME TO U&I MART</p><h1>One company.<br>Three branches.<br><span>Everyday possibilities.</span></h1><p>From a smarter home to a more comfortable space. Discover three specialized branches, brought together by U&I.</p><div class="button-row"><a class="button" href="#branches">Explore our branches <span aria-hidden="true">↗</span></a></div><div class="hero-note"><span class="dot"></span>Electronics. Furniture. Hardware. And more.</div></div><div class="hero-visual"><img id="hero-photo" src="${photo('home')}" alt="A welcoming contemporary living room" fetchpriority="high"><span class="photo-caption">Spaces that inspire · illustrative image</span><div class="visual-label"><strong>3</strong><span>Specialized branches.<br>One U&I promise.</span></div><div class="hero-index" aria-label="Choose inspiration image"><button aria-label="Living space inspiration" aria-pressed="true" data-slide="home">1</button><button aria-label="Electronics inspiration" aria-pressed="false" data-slide="abu-dhabi">2</button><button aria-label="Furniture inspiration" aria-pressed="false" data-slide="dubai">3</button></div></div></div></section><div class="container trust-strip"><span><b aria-hidden="true">⌖</b> Three locations across the UAE</span><span><b aria-hidden="true">◇</b> A specialty in every branch</span><span><b aria-hidden="true">♧</b> Kitchen essentials in every city</span></div><section id="branches" class="container section">${heading('FIND YOUR U&I','Three cities. One connection.','<p>Each branch has its own specialty.<br>Find the one that’s right for you.</p>')}<div id="branch-cards">${cards()}</div></section>${features()}${dealsSection()}`;
+  main.innerHTML = `<section class="hero container"><div class="hero-grid"><div class="hero-copy"><p class="eyebrow">WELCOME TO U&I MART</p><h1>One company.<br>Three branches.<br><span>Everyday possibilities.</span></h1><p>From a smarter home to a more comfortable space. Discover three specialized branches, brought together by U&I.</p><div class="button-row"><a class="button" href="#branches">Explore our branches <span aria-hidden="true">↗</span></a></div><div class="hero-note"><span class="dot"></span>Electronics. Furniture. Hardware. And more.</div></div><div class="hero-visual"><img id="hero-photo" src="${photo('home')}" alt="A welcoming contemporary living room" fetchpriority="high"><span class="photo-caption">Spaces that inspire · illustrative image</span><div class="visual-label"><strong>3</strong><span>Specialized branches.<br>One U&I promise.</span></div><div class="hero-index" aria-label="Choose inspiration image"><button aria-label="Living space inspiration" aria-pressed="true" data-slide="home">1</button><button aria-label="Electronics inspiration" aria-pressed="false" data-slide="abu-dhabi">2</button><button aria-label="Furniture inspiration" aria-pressed="false" data-slide="dubai">3</button></div></div></div></section><div class="container trust-strip"><span><b aria-hidden="true">⌖</b> Three locations across the UAE</span><span><b aria-hidden="true">◇</b> A specialty in every branch</span><span><b aria-hidden="true">♧</b> Kitchen essentials in every city</span></div><section id="branches" class="container section">${heading('FIND YOUR U&I','Three cities. One connection.','<p>Each branch has its own specialty.<br>Find the one that’s right for you.</p>')}<div id="branch-cards">${cards()}</div></section>${featuredDealsSection()}${features()}`;
   // Reuses the old manual slide-index pattern, without an inaccessible automatic timer.
   document.querySelectorAll('[data-slide]').forEach(button=>button.addEventListener('click',()=>{
     document.getElementById('hero-photo').src=photo(button.dataset.slide);
@@ -86,27 +87,42 @@ let deals=cachedData('deals')?.deals||[];
 let dealFilter='';
 document.addEventListener('click',event=>{const button=event.target.closest('[data-branch]');if(!button)return;dealFilter=button.dataset.branch;renderDeals(dealFilter);document.querySelectorAll('[data-branch]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));});
 
+function activeDeals(branch='') {
+  const today=new Date(Date.now()+4*3600000).toISOString().slice(0,10);
+  return deals.filter(d=>(!branch||d.branch===branch)&&(!branchesLoaded||branchRecords.some(b=>b.city===d.branch&&(b.is_active===true||/^(true|1)$/i.test(String(b.is_active)))))&&(!d.end_date||String(d.end_date).slice(0,10)>=today)&&(!d.start_date||String(d.start_date).slice(0,10)<=today));
+}
+function dealCard(d,featured=false) {
+  const card=el('article','deal-card'+(featured?' featured-deal-card':''));
+  if(safeUrl(d.image_url)){ const img=el('img'); img.src=safeUrl(d.image_url); img.alt=d.title; img.loading='lazy';card.append(img); }
+  const body=el('div','deal-content');
+  body.append(el('span','tag',`${config.preview?'SAMPLE · ':''}${d.branch}`),el('h3','',d.title),el('p','',d.description),el('p','dates',`${date(d.start_date)} — ${date(d.end_date)}`));
+  const benefits=dealBenefits(d);
+  if(benefits)body.append(el('p',featured?'featured-discount':'',benefits));
+  card.append(body);return card;
+}
 function renderDeals(branch='') {
   const target=document.getElementById('deals-list');
+  if(!target)return;
   target.replaceChildren();
-  const today=new Date(Date.now()+4*3600000).toISOString().slice(0,10);
-  const list=deals.filter(d=>(!branch||d.branch===branch)&&(!branchesLoaded||branchRecords.some(b=>b.city===d.branch&&(b.is_active===true||/^(true|1)$/i.test(String(b.is_active)))))&&(!d.end_date||d.end_date.slice(0,10)>=today)&&(!d.start_date||d.start_date.slice(0,10)<=today));
+  const list=activeDeals(branch);
   if(!list.length) { target.append(el('p','empty-state','There are no active promotions for this branch right now. Check back soon.')); return; }
-  list.forEach(d=>{
-    const card=el('article','deal-card');
-    if(safeUrl(d.image_url)){ const img=el('img'); img.src=safeUrl(d.image_url); img.alt=d.title; img.loading='lazy';card.append(img); }
-    const body=el('div','deal-content');
-    body.append(el('span','tag',`${config.preview?'SAMPLE · ':''}${d.branch}`),el('h3','',d.title),el('p','',d.description),el('p','dates',`${date(d.start_date)} — ${date(d.end_date)}`));
-    const benefits = dealBenefits(d);
-    if (benefits) body.append(el('p','',benefits));
-    card.append(body);target.append(card);
+  list.forEach(d=>target.append(dealCard(d)));
+}
+function renderFeaturedDeals(){
+  const target=document.getElementById('featured-deals-list');if(!target)return;
+  target.replaceChildren();
+  ['Abu Dhabi','Dubai','Sharjah'].forEach(branch=>{
+    const featured=activeDeals(branch).filter(d=>String(d.discount_type||'').trim().toLowerCase()==='percentage'&&Number.isFinite(Number(d.discount_value))&&Number(d.discount_value)>0&&Number(d.discount_value)<=100).reduce((best,deal)=>!best||Number(deal.discount_value)>Number(best.discount_value)?deal:best,null);
+    if(featured){target.append(dealCard(featured,true));return;}
+    const card=el('article','deal-card featured-deal-card featured-deal-empty'),body=el('div','deal-content');
+    body.append(el('span','tag',branch),el('h3','','No featured deal right now'),el('p','','Please check again soon for this branch’s next percentage offer.'));card.append(body);target.append(card);
   });
 }
 async function loadDeals(){
- if(!document.getElementById('deals-list'))return;
- if(deals.length)renderDeals(selectedBranch?.city||dealFilter);
- try{deals=(await sharedData('deals')).deals;if(document.getElementById('deals-list'))renderDeals(selectedBranch?.city||dealFilter);}
- catch(e){if(!deals.length&&document.getElementById('deals-list'))document.getElementById('deals-list').replaceChildren(el('p','empty-state',e.message));}
+ const list=document.getElementById('deals-list'),featured=document.getElementById('featured-deals-list');if(!list&&!featured)return;
+ if(deals.length){renderDeals(selectedBranch?.city||dealFilter);renderFeaturedDeals();}
+ try{deals=(await sharedData('deals')).deals;renderDeals(selectedBranch?.city||dealFilter);renderFeaturedDeals();}
+ catch(e){if(!deals.length){const target=list||featured;if(target)target.replaceChildren(el('p','empty-state',e.message));}}
 }
 async function loadContacts(){
   const target=document.getElementById('contacts');if(!target)return;
@@ -132,7 +148,7 @@ async function loadBranches(){
   if(page==='home')document.getElementById('branch-cards').innerHTML=cards();
   if(isBranchPage)renderPage();
   if(page==='deals'){const filters=document.querySelector('main .filters');filters.innerHTML=['All branches',...branches.map(b=>b.city)].map((b,i)=>`<button class="filter" data-branch="${i?b:''}" aria-pressed="${(i?b:'')===dealFilter}">${b}</button>`).join('');}
-  loadContacts();if(document.getElementById('deals-list'))renderDeals(selectedBranch?.city||dealFilter);
+  loadContacts();renderDeals(selectedBranch?.city||dealFilter);renderFeaturedDeals();
  }catch(e){branchError=e.message;if(!branchesLoaded){if(document.getElementById('branch-cards'))document.getElementById('branch-cards').replaceChildren(el('p','empty-state',e.message));loadContacts();}}
 }
 // Auth has already been validated. Shared reads no longer block the page shell.

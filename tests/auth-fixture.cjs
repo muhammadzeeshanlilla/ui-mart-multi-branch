@@ -2,7 +2,7 @@ const vm=require('node:vm'),fs=require('node:fs'),path=require('node:path'),cryp
 function fixture(){
  const db={},props={AUTH_SECRET:'local-test-secret',OWNER_EMAILS:'owner@example.test'},mail=[];
  const c=vm.createContext({Date,console:{error(){}}});
- for(const file of ['PasswordCrypto','Chatbot','Store','Auth','Logs','Code'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../apps-script/'+file+'.gs'),'utf8'),c);
+ for(const file of ['PasswordCrypto','Chatbot','Store','Auth','Logs','AITools','AIMemory','AIProvider','AIChatbot','Code'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../apps-script/'+file+'.gs'),'utf8'),c);
  Object.keys(c.Schema).forEach(k=>db[k]=[]);
  c.rows_=name=>db[name].map(r=>({...r}));c.append_=(name,row)=>db[name].push({...row});
  c.update_=(name,key,value,patch)=>{const r=db[name].find(r=>r[key]===value);if(!r)return false;Object.assign(r,patch);return true;};

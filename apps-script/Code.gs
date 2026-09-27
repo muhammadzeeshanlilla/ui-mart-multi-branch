@@ -15,7 +15,7 @@ function doPost(e){
     const raw=e&&e.postData&&e.postData.contents;if(!raw||raw.length>12000)throw new Error('Invalid request.');
     let payload;try{payload=JSON.parse(raw);}catch(error){throw new Error('Invalid JSON request.');}
     if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Invalid request.');
-    const actions=['branches','deals','chat','requestCode','verifyCode','login','me','logout','dashboard','contact'];
+    const actions=['branches','deals','chat','aiChat','requestCode','verifyCode','login','me','logout','dashboard','contact'];
     if(!actions.includes(payload.action))throw new Error('Unknown action.');
     if(!/^[A-Za-z0-9_-]{3,64}$/.test(String(payload.session_id||'')))throw new Error('Invalid session identifier.');
     if(['branches','deals'].includes(payload.action))authenticate_(payload.token,true);
@@ -24,6 +24,8 @@ function doPost(e){
       const activeBranches=DataService.getBranches();
       return json_({success:true,deals:DataService.getDeals().filter(d=>activeBranches.some(b=>b.city===d.branch))});
     }
+    // The AI route is authenticated before any Sheets data or provider call is made.
+    if(payload.action==='aiChat')return json_(aiChat_(authenticate_(payload.token,true),payload));
     // Public reads do not need to queue behind chat/authentication writes.
     lock.waitLock(20000);locked=true;
     if(payload.action==='requestCode')return json_(requestCode_(payload));
@@ -42,10 +44,11 @@ function doPost(e){
     chatRate_(payload.session_id);
     const context=payload.context&&typeof payload.context==='object'&&!Array.isArray(payload.context)?payload.context:{};
     const result=ChatEngine.answer(message,{products:DataService.getProducts(),deals:DataService.getDeals(),branches:DataService.getBranches()},context);
-    DataService.saveChatLog({chat_id:id_(),session_id:payload.session_id,user_id:user?user.user_id:'',user_name:user?user.name:'Guest',user_message:message,bot_response:JSON.stringify(result),detected_intent:result.intent,detected_branch:result.branch||'',detected_category:result.category||'',detected_product:result.products.map(p=>p.name).join(', '),timestamp:now_()});
+    DataService.saveChatLog({chat_id:id_(),session_id:payload.session_id,conversation_id:payload.session_id,user_id:user?user.user_id:'',user_name:user?user.name:'Guest',user_message:message,bot_response:JSON.stringify(result),assistant_response:result.reply,detected_intent:result.intent,detected_branch:result.branch||'',detected_category:result.category||'',detected_product:result.products.map(p=>p.name).join(', '),products_referenced:result.products.map(p=>p.product_id).join(', '),chatbot_type:'rule_based',timestamp:now_()});
     return json_(result);
   }catch(error){
-    const known=/^(Enter |Check |Code |The code |Too many |Please |Your session |This account |This email |Email or password |Owner access |Invalid |Unknown |Ask a question)/;
+    if(error.message==='AI_NOT_CONFIGURED')return json_({success:false,code:'AI_NOT_CONFIGURED',message:'The AI assistant is not configured yet.'});
+    const known=/^(Enter |Check |Code |The code |Too many |Please |Your session |This account |This email |Email or password |Owner access |Invalid |Unknown |Ask a question|The AI service)/;
     const message=known.test(error.message)?error.message:'The service is temporarily unavailable. Please try again later.';
     console.error('U&I API request failed');return json_({success:false,message,...(error.code==='AUTH_REQUIRED'?{code:'AUTH_REQUIRED'}:{})});
   }finally{if(locked)lock.releaseLock();}
