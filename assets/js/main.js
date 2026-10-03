@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { currentUser, signOut } from './session.js';
 import { cachedData, sharedData } from './shared-data.js';
 import { config } from './config.js';
-import { el, safeUrl, date, telephoneUrl, whatsappUrl, escapeHtml, dealBenefits } from './dom.js';
+import { el, safeUrl, date, telephoneUrl, whatsappUrl, escapeHtml, dealBenefits, dealImageUrl } from './dom.js';
 
 const page = document.body.dataset.page;
 const root = page === 'home' ? './' : '../';
@@ -93,7 +93,12 @@ function activeDeals(branch='') {
 }
 function dealCard(d,featured=false) {
   const card=el('article','deal-card'+(featured?' featured-deal-card':''));
-  if(safeUrl(d.image_url)){ const img=el('img'); img.src=safeUrl(d.image_url); img.alt=d.title; img.loading='lazy';card.append(img); }
+  const image=dealImageUrl(d.image_url);
+  if(image){
+    const img=el('img','deal-image');img.alt=d.title;img.loading='lazy';img.referrerPolicy='no-referrer';
+    img.addEventListener('error',()=>{const fallback=el('div','deal-image-fallback','Image unavailable');fallback.setAttribute('role','img');fallback.setAttribute('aria-label',`Image unavailable for ${d.title}`);img.replaceWith(fallback);},{once:true});
+    img.src=image;card.append(img);
+  }
   const body=el('div','deal-content');
   body.append(el('span','tag',`${config.preview?'SAMPLE · ':''}${d.branch}`),el('h3','',d.title),el('p','',d.description),el('p','dates',`${date(d.start_date)} — ${date(d.end_date)}`));
   const benefits=dealBenefits(d);

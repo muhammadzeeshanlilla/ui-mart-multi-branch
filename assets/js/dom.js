@@ -29,6 +29,17 @@ export function dealBenefits(deal) {
 export function safeUrl(value) {
   try { const url = new URL(value); return url.protocol === 'https:' ? url.href : ''; } catch { return ''; }
 }
+export function dealImageUrl(value) {
+  const safe = safeUrl(value);
+  if (!safe) return '';
+  const url = new URL(safe);
+  if (url.hostname !== 'drive.google.com') return safe;
+  const filePath = url.pathname.match(/^\/file\/d\/([^/]+)/);
+  const id = filePath?.[1] || (['/open', '/uc'].includes(url.pathname) ? url.searchParams.get('id') : '');
+  return id && /^[A-Za-z0-9_-]+$/.test(id)
+    ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1200`
+    : safe;
+}
 export function telephoneUrl(value) {
   const number = String(value ?? '').replace(/[\s()-]/g, '');
   // Never guess a country code for a number stored numerically in Sheets.

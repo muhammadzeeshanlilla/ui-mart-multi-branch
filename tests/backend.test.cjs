@@ -79,4 +79,8 @@ test('Contact helpers tolerate numeric cells and reject placeholder destinations
   assert.equal(dom.whatsappUrl('https://wa.me/971XXXXXXXXX'),'');
   assert.equal(dom.whatsappUrl('https://wa.me/971501234567'),'https://wa.me/971501234567');
   assert.equal(dom.safeUrl('Google Maps link'),'');assert.equal(dom.safeUrl('javascript:alert(1)'),'');
+  assert.equal(dom.dealImageUrl('https://drive.google.com/file/d/ABC_123-xyz/view?usp=sharing'),'https://drive.google.com/thumbnail?id=ABC_123-xyz&sz=w1200');
+  assert.equal(dom.dealImageUrl('https://drive.google.com/open?id=ABC_123-xyz'),'https://drive.google.com/thumbnail?id=ABC_123-xyz&sz=w1200');
+  assert.equal(dom.dealImageUrl('https://cdn.example.test/deals/photo.webp'),'https://cdn.example.test/deals/photo.webp');
+  assert.equal(dom.dealImageUrl('javascript:alert(1)'),'');
 });
